@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <title>After School Classes</title>
+</head>
+
+<body>
+    <div id="app">
+
+        <!-- HEADER: shows who is using the app once they are past the welcome screens -->
+        <header v-if="currentPage === 'lessons'">
+            <h1>After School Classes</h1>
+            <p v-if="isGuest">Browsing as guest</p>
+            <p v-else>Logged in as {{ loggedInUser }}</p>
+            <button v-on:click="logout">Log out</button>
+        </header>
+
+        <!-- WELCOME SCREEN: choose login, register or guest -->
+        <section v-if="currentPage === 'welcome'" class="auth-box">
+            <h1>Welcome to After School Classes</h1>
+            <p>Book sports classes and activities near you.</p>
+            <button v-on:click="currentPage = 'login'">Login</button>
+            <button v-on:click="currentPage = 'register'">Create Account</button>
+            <button v-on:click="continueAsGuest" class="secondary">Continue as Guest</button>
+        </section>
+
+        <!-- LOGIN SCREEN -->
+        <section v-else-if="currentPage === 'login'" class="auth-box">
+            <h2>Welcome Back</h2>
+            <input type="email" v-model="loginEmail" placeholder="Email">
+            <input type="password" v-model="loginPassword" placeholder="Password">
+            <button v-on:click="login">Login</button>
+            <p class="error-message" v-if="loginError">{{ loginError }}</p>
+            <p>Don't have an account? <a href="#" v-on:click.prevent="currentPage = 'register'">Create one</a></p>
+            <a href="#" v-on:click.prevent="currentPage = 'welcome'">Back</a>
+        </section>
+
+        <!-- REGISTER SCREEN: button stays disabled until the regex checks pass -->
+        <section v-else-if="currentPage === 'register'" class="auth-box">
+            <h2>Create Account</h2>
+            <input type="text" v-model="registerName" placeholder="Name">
+            <input type="email" v-model="registerEmail" placeholder="Email">
+            <input type="password" v-model="registerPassword" placeholder="Password">
+            <input type="password" v-model="registerConfirm" placeholder="Confirm Password">
+            <p class="hint" v-if="registerProblem">{{ registerProblem }}</p>
+            <button v-on:click="register" v-bind:disabled="registerProblem !== ''">Create Account</button>
+            <p>Already have an account? <a href="#" v-on:click.prevent="currentPage = 'login'">Login</a></p>
+            <a href="#" v-on:click.prevent="currentPage = 'welcome'">Back</a>
+        </section>
+
+        <!-- LESSONS LANDING PAGE: one grid card per lesson using v-for -->
+        <main v-else-if="currentPage === 'lessons'">
+            <div class="lesson-grid">
+                <div class="lesson-card" v-for="lesson in lessons" v-bind:key="lesson.id">
+                    <img v-bind:src="'images/' + lesson.image" v-bind:alt="lesson.topic">
+                    <h3>{{ lesson.topic }}</h3>
+                    <p>Location: {{ lesson.location }}</p>
+                    <p>Price: £{{ lesson.price }}</p>
+                    <p>Spaces: {{ lesson.space }}</p>
+                </div>
+            </div>
+        </main>
+
+    </div>
+
+    <script type="module">
+        const { createApp } = Vue
+        const myApp = createApp({
+            data() {
+                return {
+                    // which screen is showing: 'welcome', 'login', 'register' or 'lessons'
+                    currentPage: 'welcome',
+                    isGuest: false,
+                    loggedInUser: '',
+
+                    // form fields (linked to the inputs with v-model)
+                    loginEmail: '',
+                    loginPassword: '',
+                    loginError: '',
+                    registerName: '',
+                    registerEmail: '',
+                    registerPassword: '',
+                    registerConfirm: '',
+
+                    // accounts created this session (front end only until the back end has user routes)
+                    users: [],
+
+                    // lesson data (will later come from GET /lessons on the back end)
+                    lessons: [
+                        {
+                            id: 1,
+                            topic: 'Athletics',
+                            location: 'London',
+                            price: 25,
+                            space: 5,
+                            image: 'athletics.jpg'
+                        },
+                        {
+                            id: 2,
+                            topic: 'Football',
+                            location: 'Manchester',
+                            price: 20,
+                            space: 5,
+                            image: 'football.jpg'
+                        },
+                        {
+                            id: 3,
+                            topic: 'Basketball',
+                            location: 'Birmingham',
+                            price: 30,
+                            space: 5,
+                            image: 'basketball.jpg'
+                        },
+                        {
+                            id: 4,
+                            topic: 'Tennis',
+                            location: 'Bristol',
+                            price: 35, 
+                            space: 5, 
+                            image: 'tennis.jpg'
+                        },
+                        { 
+                            id: 5, 
+                            topic: 'Swimming', 
+                            location: 'Leeds', 
+                            price: 28, 
+                            space: 5, 
+                            image: 'swimming.jpg' 
+                        },
+                        { 
+                            id: 6, 
+                            topic: 'Boxing', 
+                            location: 'London', 
+                            price: 40, 
+                            space: 5, 
+                            image: 'boxing.jpg' 
+                        },
+                        { 
+                            id: 7, 
+                            topic: 'Gymnastics', 
+                            location: 'Nottingham', 
+                            price: 25, 
+                            space: 5, 
+                            image: 'gymnastics.jpg' 
+                        },
+                        { 
+                            id: 8, 
+                            topic: 'Rugby', 
+                            location: 'Cardiff', 
+                            price: 30, 
+                            space: 5, 
+                            image: 'rugby.jpg' 
+                        },
+                        { 
+                            id: 9, 
+                            topic: 'Cycling', 
+                            location: 'Cambridge', 
+                            price: 22, 
+                            space: 5, 
+                            image: 'cycling.jpg' 
+                        },
+                        { 
+                            id: 10, 
+                            topic: 'Cricket', 
+                            location: 'Birmingham', 
+                            price: 27, 
+                            space: 5, 
+                            image: 'cricket.jpg' 
+                        }
+                    ]
+                }
+            },
+            computed: {
+                // returns the first problem with the register form, or '' when everything is valid
+                // (regexes reused from TradeOff script.js lines 293-294)
+                registerProblem() {
+                    const nameRegex = /^[A-Za-z ]+$/
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+                    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{6,}$/
+                    if (!nameRegex.test(this.registerName)) return 'Name must be letters only'
+                    if (!emailRegex.test(this.registerEmail)) return 'Enter a valid email'
+                    if (!passwordRegex.test(this.registerPassword)) return 'Password must be 6+ characters with upper, lower, number and special character'
+                    if (this.registerPassword !== this.registerConfirm) return 'Passwords do not match'
+                    return ''
+                }
+            },
+            methods: {
+                continueAsGuest() {
+                    this.isGuest = true
+                    this.currentPage = 'lessons'
+                },
+                register() {
+                    this.users.push({ name: this.registerName, email: this.registerEmail, password: this.registerPassword })
+                    this.loggedInUser = this.registerName
+                    this.isGuest = false
+                    this.currentPage = 'lessons'
+                },
+                login() {
+                    const user = this.users.find(u => u.email === this.loginEmail && u.password === this.loginPassword)
+                    if (!user) {
+                        this.loginError = 'Incorrect email or password'
+                        return
+                    }
+                    this.loginError = ''
+                    this.loggedInUser = user.name
+                    this.isGuest = false
+                    this.currentPage = 'lessons'
+                },
+                logout() {
+                    this.isGuest = false
+                    this.loggedInUser = ''
+                    this.loginPassword = ''
+                    this.currentPage = 'welcome'
+                }
+            }
+        })
+        myApp.mount('#app')
+    </script>
+</body>
+
+</html>
