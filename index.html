@@ -273,9 +273,12 @@
                 // the same lesson can be added more than once (e.g. two children in the
                 // same class) until its spaces run out, then the button disables
                 addToCart(lesson) {
-                    if (!lesson || lesson.space <= 0) return
+                    if (!this.canAddToCart(lesson)) return
                     this.cart.push(lesson)
                     lesson.space--
+                },
+                canAddToCart(lesson) {
+                    return lesson.space > 0
                 },
                 continueAsGuest() {
                     this.isGuest = true
