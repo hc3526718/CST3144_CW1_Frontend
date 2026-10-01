@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <title>After School Classes</title>
 </head>
@@ -13,10 +14,13 @@
     <div id="app">
 
         <!-- HEADER: shows who is using the app once they are past the welcome screens -->
-        <header v-if="currentPage === 'lessons'">
+        <header v-if="currentPage === 'lessons' || currentPage === 'lesson-details' || currentPage === 'cart' || currentPage === 'checkout'">
+            <i class="fa-solid fa-arrow-left" v-if="currentPage !== 'lessons'" v-on:click="currentPage = 'lessons'"></i>
             <h1>After School Classes</h1>
             <p v-if="isGuest">Browsing as guest</p>
-            <p v-else>Logged in as {{ loggedInUser }}</p>
+            <i class="fa-solid fa-shopping-cart" v-on:click="currentPage = 'cart'"></i>
+            <span v-if="cartCount">({{ cartCount }})</span>
+            <p v-if="loggedInUser && isGuest === false">Logged in as {{ loggedInUser }}</p>
             <button v-on:click="logout">Log out</button>
         </header>
 
@@ -36,8 +40,8 @@
             <input type="password" v-model="loginPassword" placeholder="Password">
             <button v-on:click="login">Login</button>
             <p class="error-message" v-if="loginError">{{ loginError }}</p>
-            <p>Don't have an account? <a href="#" v-on:click.prevent="currentPage = 'register'">Create one</a></p>
-            <a href="#" v-on:click.prevent="currentPage = 'welcome'">Back</a>
+            <p>Don't have an account? <a v-on:click="currentPage = 'register'">Create one</a></p>
+            <a v-on:click="currentPage = 'welcome'">Back</a>
         </section>
 
         <!-- REGISTER SCREEN: button stays disabled until the regex checks pass -->
@@ -49,8 +53,8 @@
             <input type="password" v-model="registerConfirm" placeholder="Confirm Password">
             <p class="hint" v-if="registerProblem">{{ registerProblem }}</p>
             <button v-on:click="register" v-bind:disabled="registerProblem !== ''">Create Account</button>
-            <p>Already have an account? <a href="#" v-on:click.prevent="currentPage = 'login'">Login</a></p>
-            <a href="#" v-on:click.prevent="currentPage = 'welcome'">Back</a>
+            <p>Already have an account? <a v-on:click="currentPage = 'login'">Login</a></p>
+            <a v-on:click="currentPage = 'welcome'">Back</a>
         </section>
 
         <!-- LESSONS LANDING PAGE: one grid card per lesson using v-for -->
@@ -62,10 +66,52 @@
                     <p>Location: {{ lesson.location }}</p>
                     <p>Price: £{{ lesson.price }}</p>
                     <p>Spaces: {{ lesson.space }}</p>
+                    <button v-on:click="selectedLesson = lesson; currentPage = 'lesson-details'">
+                        View Lesson
+                    </button>
+                    <button v-on:click="addToCart(lesson)" v-bind:disabled="lesson.space <= 0">
+                        Add to Cart
+                    </button>
+                    <p class="no-space" v-if="lesson.space <= 0">No more space</p>
                 </div>
             </div>
         </main>
 
+        <section v-else-if="currentPage === 'lesson-details'" class="lesson-details">
+            <div class="lesson-details" v-if="selectedLesson">
+                <img :src="'images/' + selectedLesson.image" :alt="selectedLesson.topic">
+                <h2>{{ selectedLesson.topic }}</h2>
+                <p>£{{ selectedLesson.price }}</p>
+                <p>{{ selectedLesson.desc }}</p>
+                <button v-on:click="addToCart(selectedLesson)" v-bind:disabled="selectedLesson.space <= 0">
+                    Add to Cart
+                </button>
+                <p class="no-space" v-if="selectedLesson.space <= 0">No more space</p>
+                <button v-on:click="currentPage = 'lessons'">
+                    Back to Lessons
+                </button>
+            </div>
+        </section>
+
+        <section v-else-if="currentPage === 'cart'" class="cart">
+            <h2>Your Cart</h2>
+            <p v-if="cartCount === 0">Your cart is empty.</p>
+            <ul v-else>
+                <li v-for="item in cartSummary" :key="item.lesson.id">
+                    ID: {{ item.lesson.id }} | Lesson: {{ item.lesson.topic }} | Price: £{{ item.lesson.price }} | Quantity: {{ item.quantity }}
+                </li>
+            </ul>
+            <button v-if="cartCount > 0" v-on:click="currentPage = 'checkout'">Proceed to Checkout</button>
+            <p v-if="cartCount > 0">Total: £{{ cartSummary.reduce((total, item) => total + item.lesson.price * item.quantity, 0) }}</p>
+            <button v-if="cartCount > 0" v-on:click="cart = []; lessons.forEach(lesson => lesson.space = 5); currentPage = 'lessons'">Clear Cart</button>
+            <button v-on:click="currentPage = 'lessons'">Continue Shopping</button>
+        </section>
+
+        <section v-else-if="currentPage === 'checkout'" class="checkout">
+            <h2>Checkout</h2>
+            <p>Thank you for your purchase!</p>
+            <button v-on:click="currentPage = 'lessons'">Continue Shopping</button>
+        </section>
     </div>
 
     <script type="module">
@@ -73,10 +119,14 @@
         const myApp = createApp({
             data() {
                 return {
-                    // which screen is showing: 'welcome', 'login', 'register' or 'lessons'
+                    // which screen is showing: 'welcome', 'login', 'register', 'lessons', 'lesson-details' or 'cart'
                     currentPage: 'welcome',
                     isGuest: false,
                     loggedInUser: '',
+                    cart: [],
+
+                    // the lesson opened with "View Lesson", used by the details screen
+                    selectedLesson: null,
 
                     // form fields (linked to the inputs with v-model)
                     loginEmail: '',
@@ -98,7 +148,8 @@
                             location: 'London',
                             price: 25,
                             space: 5,
-                            image: 'athletics.jpg'
+                            image: 'athletics.jpg',
+                            desc: 'Designed to develop core movement skills, this class introduces young athletes to track and field fundamentals such as sprinting, hurdling, relay passing, and field events like shot put. Guided by an instructor, participants improve their speed, agility, and endurance through structured running lanes and interactive physical challenges.'
                         },
                         {
                             id: 2,
@@ -106,7 +157,8 @@
                             location: 'Manchester',
                             price: 20,
                             space: 5,
-                            image: 'football.jpg'
+                            image: 'football.jpg',
+                            desc: 'This energetic session focuses on building foundational soccer skills, including ball control, dribbling, passing, and basic team plays. Under the guidance of a supportive coach, children practice essential footwork and shooting drills while learning key concepts of sportsmanship and teamwork on the pitch.   '
                         },
                         {
                             id: 3,
@@ -114,63 +166,71 @@
                             location: 'Birmingham',
                             price: 30,
                             space: 5,
-                            image: 'basketball.jpg'
+                            image: 'basketball.jpg',
+                            desc: 'In this lively indoor clinic, students learn the fundamentals of basketball, including dribbling, passing, shooting, and positioning. Guided by an encouraging coach, young players engage in skill-building drills and mini-scrimmages that emphasize spatial awareness, hand-eye coordination, and cooperative play.   '
                         },
                         {
                             id: 4,
                             topic: 'Tennis',
                             location: 'Bristol',
-                            price: 35, 
-                            space: 5, 
-                            image: 'tennis.jpg'
+                            price: 35,
+                            space: 5,
+                            image: 'tennis.jpg',
+                            desc: 'This introductory racket program teaches students proper grip, forehand and backhand swings, and basic court positioning. Guided by a coach using age-appropriate gear and low-compression balls, children practice rally drills, ball control, and footwork across the net in a fun, structured environment.   '
                         },
-                        { 
-                            id: 5, 
-                            topic: 'Swimming', 
-                            location: 'Leeds', 
-                            price: 28, 
-                            space: 5, 
-                            image: 'swimming.jpg' 
+                        {
+                            id: 5,
+                            topic: 'Swimming',
+                            location: 'Leeds',
+                            price: 28,
+                            space: 5,
+                            image: 'swimming.jpg',
+                            desc: 'This aquatic lesson helps children gain confidence in the water while developing fundamental swimming strokes, breathing techniques, and water safety habits. Guided by an instructor pool-side, swimmers utilize floatation aids, kickboards, and interactive exercises to build endurance and proper kicking mechanics.   '
                         },
-                        { 
-                            id: 6, 
-                            topic: 'Boxing', 
-                            location: 'London', 
-                            price: 40, 
-                            space: 5, 
-                            image: 'boxing.jpg' 
+                        {
+                            id: 6,
+                            topic: 'Boxing',
+                            location: 'London',
+                            price: 40,
+                            space: 5,
+                            image: 'boxing.jpg',
+                            desc: 'Focusing on discipline, rhythm, and cardiovascular fitness, this class introduces non-contact and foundational boxing techniques. Led by a coach, participants learn basic stances, footwork, hand-eye coordination, and controlled striking against heavy bags and target pads while emphasizing safety and self-confidence.   '
                         },
-                        { 
-                            id: 7, 
-                            topic: 'Gymnastics', 
-                            location: 'Nottingham', 
-                            price: 25, 
-                            space: 5, 
-                            image: 'gymnastics.jpg' 
+                        {
+                            id: 7,
+                            topic: 'Gymnastics',
+                            location: 'Nottingham',
+                            price: 25,
+                            space: 5,
+                            image: 'gymnastics.jpg',
+                            desc: 'This dynamic class develops flexibility, balance, and core strength as young gymnasts explore fundamental apparatuses such as balance beams, low bars, and floor mats. Under careful coaching supervision, students practice body control through handstands, poses, tumbling, and agility exercises.   '
                         },
-                        { 
-                            id: 8, 
-                            topic: 'Rugby', 
-                            location: 'Cardiff', 
-                            price: 30, 
-                            space: 5, 
-                            image: 'rugby.jpg' 
+                        {
+                            id: 8,
+                            topic: 'Rugby',
+                            location: 'Cardiff',
+                            price: 30,
+                            space: 5,
+                            image: 'rugby.jpg',
+                            desc: 'An introductory program centered on team dynamics and ball handling, this class teaches the basics of carrying, passing, and catching an oval ball while navigating agility courses. Guided by an instructor, children learn spatial awareness, tag-rugby rules, and cooperative play using soft training gear.   '
                         },
-                        { 
-                            id: 9, 
-                            topic: 'Cycling', 
-                            location: 'Cambridge', 
-                            price: 22, 
-                            space: 5, 
-                            image: 'cycling.jpg' 
+                        {
+                            id: 9,
+                            topic: 'Cycling',
+                            location: 'Cambridge',
+                            price: 22,
+                            space: 5,
+                            image: 'cycling.jpg',
+                            desc: 'Focused on balance, coordination, and safety, this beginner class helps young riders master balance bikes and pedal bicycles. Under the direction of a coach, children learn steering, braking, and helmet safety while navigating marked courses and obstacle layouts.   '
                         },
-                        { 
-                            id: 10, 
-                            topic: 'Cricket', 
-                            location: 'Birmingham', 
-                            price: 27, 
-                            space: 5, 
-                            image: 'cricket.jpg' 
+                        {
+                            id: 10,
+                            topic: 'Cricket',
+                            location: 'Birmingham',
+                            price: 27,
+                            space: 5,
+                            image: 'cricket.jpg',
+                            desc: 'This class introduces young players to the fundamentals of cricket, including batting technique, bowling actions, and fielding drills. Under the coachs guidance, participants practice hitting targets, catching, and running between wickets using age-appropriate bats, balls, and equipment.'
                         }
                     ]
                 }
@@ -187,9 +247,36 @@
                     if (!passwordRegex.test(this.registerPassword)) return 'Password must be 6+ characters with upper, lower, number and special character'
                     if (this.registerPassword !== this.registerConfirm) return 'Passwords do not match'
                     return ''
+                },
+                cartCount() {
+                    return this.cart.length || 0
+                },
+                // groups the cart by lesson so the same lesson added more than once
+                // shows as one line with a quantity instead of duplicate list items
+                cartSummary() {
+                    const summary = []
+                    this.cart.forEach(item => {
+                        const existing = summary.find(entry => entry.lesson.id === item.id)
+                          if (existing) {
+                            existing.quantity++
+                        } else {
+                            summary.push({ lesson: item, quantity: 1 })
+                        }
+                    })
+                    return summary
                 }
             },
             methods: {
+                // adds a lesson to the cart and takes one space off it
+                // the lesson is passed in by the button, so the grid cards work
+                // before anything on the details screen has been selected
+                // the same lesson can be added more than once (e.g. two children in the
+                // same class) until its spaces run out, then the button disables
+                addToCart(lesson) {
+                    if (!lesson || lesson.space <= 0) return
+                    this.cart.push(lesson)
+                    lesson.space--
+                },
                 continueAsGuest() {
                     this.isGuest = true
                     this.currentPage = 'lessons'

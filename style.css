@@ -8,9 +8,9 @@ body {
 header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 16px;
     padding: 12px 24px;
+    justify-content: space-between;
     background: #1f3b73;
     color: white;
 }
@@ -69,7 +69,13 @@ button:disabled {
     font-size: 0.9rem;
 }
 
-/* LESSON GRID (layout adapted from TradeOff style.css .feed-content, lines 507-514) */
+/* shown under the Add to Cart button once a lesson has no spaces left */
+.no-space {
+    color: #c0392b;
+    font-weight: bold;
+    margin: 6px 0 0;
+}
+
 .lesson-grid {
     max-width: 1100px;
     margin: 24px auto;
